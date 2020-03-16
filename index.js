@@ -1,32 +1,57 @@
 const fs = require('fs')
+const util = require('util')
+const exec = util.promisify(require('child_process').exec)
 
-const file = process.argv.pop()
+let file = process.argv[process.argv.length - 1]
 const [r, s, from, to] = process.argv
 
-if (from === undefined || to === undefined || file === undefined) {
+if (from === undefined || to === undefined) {
   throw new Error('Args missing')
 }
 
-if (from === '--config') {
-  const hosts = require(`./${to}`)
-  fs.readFile(file, 'utf8', function (err, data) {
-    if (err) return console.log(err)
-    let newData = data
-    hosts.forEach(function (host) {
-      newData = replaceHost(host.from, host.to, newData)
+async function init () {
+  if (from === '--config') {
+    const config = require(`./${to}`)
+
+    if (config.file) file = config.file
+
+    if (config.mysql) {
+      file = 'temp-db.sql'
+      console.log('database: export')
+      const { stdout1, stderr1 } = await exec(`mysqldump ${getMysqlCredentials(config.mysql)} ${config.mysql.dbname} > temp-db.sql`)
+      if (stderr1) throw new Error('Cant export db')
+    }
+
+    fs.readFile(file, 'utf8', async function (err, data) {
+      if (err) return console.log(err)
+      let newData = data
+      config.hosts.forEach(function (host) {
+        newData = replaceHost(host.from, host.to, newData)
+      })
+      fs.writeFile(`new-${file}`, newData, 'utf8', async function (err) {
+         if (err) return console.log(err)
+         if (config.mysql) {
+           console.log('database: import')
+           const { stdout2, stderr2 } = await exec(`mysql ${getMysqlCredentials(config.mysql)} ${config.mysql.dbname} < new-temp-db.sql`)
+           if (stderr2) throw new Error('Cant import db')
+           const { stdout3, stderr3 } = await exec(`rm temp-db.sql new-temp-db.sql`)
+           if (stderr3) throw new Error('Cant remove sql files')
+         }
+      })
     })
-    fs.writeFile(`new-${file}`, newData, 'utf8', function (err) {
-       if (err) return console.log(err)
+  } else {
+    fs.readFile(file, 'utf8', function (err, data) {
+      if (err) return console.log(err)
+      const newData = replaceHost(from, to, data)
+      fs.writeFile(`new-${file}`, newData, 'utf8', function (err) {
+         if (err) return console.log(err)
+      })
     })
-  })
-} else {
-  fs.readFile(file, 'utf8', function (err, data) {
-    if (err) return console.log(err)
-    const newData = replaceHost(from, to, data)
-    fs.writeFile(`new-${file}`, newData, 'utf8', function (err) {
-       if (err) return console.log(err)
-    })
-  })
+  }
+}
+
+function getMysqlCredentials (mysql) {
+  return mysql.password ? `-u${mysql.user} -p${mysql.password}` : `-u${mysql.user}`
 }
 
 function replaceHost (f, t, data) {
@@ -55,3 +80,5 @@ function replaceHost (f, t, data) {
 
   return result
 }
+
+init()
