@@ -1,0 +1,23 @@
+{
+  "name": "wordpress-replace-host-database",
+  "version": "1.0.0",
+  "description": "Node.js command to replace host in WordPress database",
+  "main": "./lib/index.js",
+  "preferGlobal": true,
+  "bin": {
+    "wpreplacehostdb": "./bin/wpreplacehostdb.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/victor-gabou/wordpress-replace-host-database.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/victor-gabou/wordpress-replace-host-database/issues"
+  },
+  "homepage": "https://github.com/victor-gabou/wordpress-replace-host-database#readme"
+}
